@@ -1,5 +1,10 @@
 import { Router } from 'express';
-import { userEndpoint, retrieveUserProfile, updateUserToken } from '../../../controllers/v4/internal/user.js';
+import {
+  retrieveUserProfile,
+  updateUserToken,
+  processUserSessionAndUpdate,
+  getUser,
+} from '../../../controllers/v4/internal/user.js';
 import createRateLimiter from '../../../middlewares/rateLimit.js';
 
 const router = Router();
@@ -31,7 +36,8 @@ router
    * @apiSuccess {function} middleware Express middleware function that handles rate limiting.
    *
    */
-  .post(createRateLimiter(), userEndpoint);
+  .post(createRateLimiter(), processUserSessionAndUpdate)
+  .get(createRateLimiter(), getUser);
 
 router
   .route('/profile/:id')
