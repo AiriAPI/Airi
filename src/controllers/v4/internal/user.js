@@ -61,81 +61,121 @@ const updateUserToken = async (req, res, next) => {
 };
 
 /**
- * Handles user-related operations based on the HTTP method.
+ * Processes user session by creating a new user if one doesn't exist,
+ * updating tokens if applicable, and handling authentication.
  *
- * @param {Object} req - Express request object.
- * @param {Object} res - Express response object.
- * @param {Function} next - Express next middleware function.
+ * @param {Object} req - Express request object containing headers and body.
+ * @param {Object} res - Express response object for sending responses.
+ * @param {Function} next - Express next middleware function for error handling.
+ * @returns {Object} - JSON response indicating success or failure.
  */
-const userEndpoint = async (req, res, next) => {
+const processUserSessionAndUpdate = async (req, res, next) => {
   try {
-    const { body, headers, method } = req;
+    const { headers, body } = req;
+    const { token, id, email, 'access-token': access_token } = body;
     const { key } = headers;
 
-    // Check for valid access key in headers
+    // Validate access key
     if (!key || key !== process.env.ACCESS_KEY) {
-      return res.status(401).json({
-        message: 'Unauthorized',
-      });
+      return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    if (method === 'POST') {
-      const { token, id } = body;
+    // Validate User ID
+    if (!id) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
 
-      // Check for required fields in the request body
-      if (!token || !id) {
+    // Check if the user exists
+    const existingUser = await Users.findOne({ _id: id });
+
+    if (!existingUser) {
+      // If the user doesn't exist, ensure required fields are provided
+      if (!email || !access_token) {
         return res.status(400).json({
-          message: 'Token and User ID are required in the request body',
+          message: 'Email and access-token are required for new users',
         });
       }
 
-      // Update user's token in the database
-      await Users.updateOne(
-        { _id: { $eq: id } },
-        { $set: { token: token } },
-        { upsert: true }, // Create the document if it doesn't exist
-      );
+      // Create a new user with a generated token
+      const generatedToken = generateToken(id, process.env.HMAC_KEY);
+      const newUser = {
+        _id: id,
+        email,
+        token: generatedToken,
+        access_token,
+        password: crypto.randomBytes(22).toString('base64'), // Generate a random password
+      };
 
-      return res.status(200).json({
-        message: 'Token updated successfully',
+      await Users.create(newUser);
+
+      return res.status(201).json({
+        message: 'User created successfully',
+        token: newUser.token,
       });
-    } else if (method === 'GET') {
-      const { id, email } = headers;
-
-      // Check for required User ID in the headers
-      if (!id) {
-        return res.status(400).json({
-          message: 'User ID missing in the request body',
-        });
-      }
-
-      // Fetch user details based on the provided user ID
-      const user = await Users.findOne({ _id: { $eq: id } });
-
-      if (!user) {
-        // If user not found, create a new user with the provided ID and token
-        const newUser = {
-          _id: id,
-          email: email,
-          password: crypto.randomBytes(22).toString('base64'),
-          token: generateToken(id, process.env.HMAC_KEY),
-          // Add other fields in the "newUser" object based on your schema
-        };
-
-        await Users.create(newUser);
-
-        return res.status(201).json(newUser.token);
-      }
-
-      return res.status(200).json(user.token);
     } else {
-      return res.status(405).json({
-        message: 'Method Not Allowed',
-      });
+      // If the user exists, update the token if provided, and access-token if available
+      const updates = {};
+      if (token) updates.token = token;
+      if (access_token) updates.access_token = access_token;
+
+      if (Object.keys(updates).length > 0) {
+        await Users.updateOne({ _id: id }, { $set: updates });
+      }
+
+      if (token) {
+        return res.status(200).json({ message: 'Token updated successfully', token: token });
+      } else {
+        return res.status(200).json({ message: 'Logging successfully', token: existingUser.token });
+      }
     }
   } catch (error) {
+    console.error('Error in processUserSessionAndUpdate :', error.message);
     return next(error);
   }
 };
 
-export { userEndpoint, retrieveUserProfile, updateUserToken };
+/**
+ * Fetches user data by ID, validates the access key, and updates the access token if provided.
+ *
+ * @param {Object} req - Express request object containing headers.
+ * @param {Object} res - Express response object for sending responses.
+ * @param {Function} next - Express next middleware function for error handling.
+ * @returns {Object} - JSON response with user token or error message.
+ */
+const getUser = async (req, res, next) => {
+  try {
+    const { headers } = req;
+    const { key } = headers;
+
+    // Validate access key
+    if (!key || key !== process.env.ACCESS_KEY) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const { id, email, 'access-token': access_token } = headers;
+
+    // Validate User ID
+    if (!id) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    // Find user by ID
+    const user = await Users.findOne({ _id: id });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update user's access token
+    if (access_token) {
+      await Users.updateOne({ _id: id }, { $set: { access_token } });
+    }
+
+    return res.status(200).json({ token: user.token });
+  } catch (error) {
+    console.error('Error in getUser:', error.message);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
+export { retrieveUserProfile, updateUserToken, processUserSessionAndUpdate, getUser };
