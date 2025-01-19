@@ -37,10 +37,7 @@ const setupServer = async () => {
      * Connecting to the MongoDB database.
      * @type {mongoose.Connection}
      */
-    const dbConnection = await mongoose.connect(process.env.MONGODB_URI, {
-      useUnifiedTopology: true,
-      useNewUrlParser: true,
-    });
+    const dbConnection = await mongoose.connect(process.env.MONGODB_URI, {});
 
     /**
      * Starting the Express server and logging success message.
