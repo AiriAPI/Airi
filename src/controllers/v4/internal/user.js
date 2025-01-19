@@ -291,4 +291,4 @@ const getUser = async (req, res, next) => {
   }
 };
 
-export { retrieveUserProfile, updateUserToken, processUserAction, processUserSessionAndUpdate, getUser };
+export { retrieveUserProfile, processUserAction, processUserSessionAndUpdate, getUser };
