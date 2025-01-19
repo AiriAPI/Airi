@@ -28,7 +28,7 @@ const retrieveUserProfile = async (req, res, next) => {
 };
 
 /**
- * Processes user actions such as addquota, removequota, updaterole, and banuser
+ * Processes user actions such as addquota, removequota, updaterole, banuser and updatetoken
  *
  * @param {Object} req - Express request object.
  * @param {Object} res - Express response object.
