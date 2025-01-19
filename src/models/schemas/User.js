@@ -51,11 +51,24 @@ const UserSchema = new mongoose.Schema({
   status_history: [
     {
       /**
+       * Unique identifier for the status change.
+       * @type {string}
+       * @required
+       */
+      _id: String,
+      /**
        * Timestamp of the status change.
        * @type {Date}
        * @default Date.now
        */
       timestamp: { type: Date, default: Date.now },
+
+      /**
+       * Expiry date for the status change.
+       * @type {Date}
+       * @default Date.now
+       */
+      expiry: { type: Date },
 
       /**
        * The reason for the status change.
@@ -64,10 +77,23 @@ const UserSchema = new mongoose.Schema({
       reason: { type: String },
 
       /**
+       * The value of the status change either quota or role or subscription or new email.
+       * @type {string}
+       * @default 'null'
+       */
+      value: { type: String },
+      /**
        * Flag indicating whether the user is banned at this status change.
        * @type {boolean}
        */
       isBanned: { type: Boolean },
+
+      /**
+       * Information about the staff member who performed the action.
+       * @type {Object}
+       * @required
+       */
+      executor: String,
     },
   ],
 

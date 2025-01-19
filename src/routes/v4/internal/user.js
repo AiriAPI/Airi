@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   retrieveUserProfile,
-  updateUserToken,
+  processUserAction,
   processUserSessionAndUpdate,
   getUser,
 } from '../../../controllers/v4/internal/user.js';
@@ -91,7 +91,8 @@ router
    * @apiSuccess {function} middleware Express middleware function that handles rate limiting.
    *
    */
-  .patch(createRateLimiter(), updateUserToken);
+
+  .patch(createRateLimiter(), processUserAction);
 
 // Export the router
 export default router;

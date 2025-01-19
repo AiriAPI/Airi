@@ -28,36 +28,149 @@ const retrieveUserProfile = async (req, res, next) => {
 };
 
 /**
- * Fetches user profile data based on the provided user ID and Reset Token.
+ * Processes user actions such as addquota, removequota, updaterole, and banuser
  *
  * @param {Object} req - Express request object.
  * @param {Object} res - Express response object.
  * @param {Function} next - Express next middleware function.
- * @returns {Object} - User profile data.
+ * @returns {Object} - Response with action results or errors.
  */
-const updateUserToken = async (req, res, next) => {
+const processUserAction = async (req, res, next) => {
   const key = req.headers.key;
+
   // Check for valid access key in headers
   if (!key || key !== process.env.ACCESS_KEY) {
     return res.status(401).json({
       message: 'Unauthorized',
     });
   }
-  const user = await Users.findById(req.params.id);
-  if (!user) {
-    return res.status(404).json({ message: 'User not found' }); // User not found
+
+  const userId = req.params.id;
+  const { action, amount, reason, executor, expiry } = req.body; // Extract fields from the request body
+
+  try {
+    // Fetch user by ID
+    const user = await Users.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' }); // User not found
+    }
+
+    let updatedUser;
+
+    // Handle different actions
+    switch (action) {
+      case 'addquota':
+        if (!amount || amount <= 0) {
+          return res.status(400).json({ message: 'Invalid quota amount' });
+        }
+        user.req_quota = (user.req_quota || 0) + Number(amount);
+
+        // Update status history
+        user.status_history.push({
+          _id: user.status_history.length + 1,
+          timestamp: new Date(),
+          reason: reason || 'Quota added',
+          value: `+${amount} quota`,
+          executor: executor || 'system',
+        });
+
+        updatedUser = await user.save();
+        break;
+
+      case 'removequota':
+        if (!amount || amount <= 0) {
+          return res.status(400).json({ message: 'Invalid quota amount' });
+        }
+        if ((user.req_quota || 0) < amount) {
+          return res.status(400).json({ message: 'Insufficient quota' });
+        }
+        user.req_quota = (user.req_quota || 0) - Number(amount);
+
+        // Update status history
+        user.status_history.push({
+          _id: user.status_history.length + 1,
+          timestamp: new Date(),
+          reason: reason || 'Quota removed',
+          value: `-${amount} quota`,
+          executor: executor || 'system',
+        });
+
+        updatedUser = await user.save();
+        break;
+
+      case 'ban':
+        if (!reason) {
+          return res.status(400).json({ message: 'Ban reason is required' });
+        }
+        user.banned = true;
+
+        // Update status history
+        user.status_history.push({
+          _id: user.status_history.length + 1,
+          timestamp: new Date(),
+          expiry: expiry || null,
+          reason,
+          isBanned: true,
+          executor: executor || 'system',
+        });
+
+        updatedUser = await user.save();
+        break;
+      case 'unban':
+        if (!reason) {
+          return res.status(400).json({ message: 'Unban reason is required' });
+        }
+        user.banned = false;
+
+        // Update status history
+        user.status_history.push({
+          _id: user.status_history.length + 1,
+          timestamp: new Date(),
+          expiry: expiry || null,
+          reason,
+          isBanned: false,
+          executor: executor || 'system',
+        });
+
+        updatedUser = await user.save();
+        break;
+
+      case 'updatetoken':
+        if (!reason) {
+          return res.status(400).json({ message: 'Token update reason is required' });
+        }
+        const token = generateToken(userId, process.env.HMAC_KEY);
+        user.token = token;
+
+        // Update status history
+        user.status_history.push({
+          _id: user.status_history.length + 1,
+          timestamp: new Date(),
+          reason: reason || 'Token updated',
+          value: token,
+          executor: executor || 'system',
+        });
+
+        updatedUser = await user.save();
+        break;
+
+      default:
+        return res.status(400).json({ message: `Invalid action: ${action}` });
+    }
+
+    // Respond with updated user data
+    return res.status(200).json({
+      success: true,
+      message: `${action} executed successfully`,
+      user: updatedUser,
+    });
+  } catch (error) {
+    // Handle server errors
+    return res.status(500).json({
+      message: 'An error occurred while processing the action',
+      error: error.message,
+    });
   }
-
-  // Update user's token in the database
-  await Users.updateOne(
-    { _id: { $eq: req.params.id } },
-    { $set: { token: generateToken(req.params.id, process.env.HMAC_KEY) } },
-  );
-
-  // This will return the data however it won't be the latest one after updating the token
-  return res.status(200).json({
-    message: 'Token reset successfully.',
-  });
 };
 
 /**
@@ -178,4 +291,4 @@ const getUser = async (req, res, next) => {
   }
 };
 
-export { retrieveUserProfile, updateUserToken, processUserSessionAndUpdate, getUser };
+export { retrieveUserProfile, updateUserToken, processUserAction, processUserSessionAndUpdate, getUser };
