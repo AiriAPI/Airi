@@ -18,7 +18,7 @@ router
    * @apiGroup UserManagement
    * @apiPermission user
    *
-   * @apiHeader {String} Authorization User's access token.
+   * @apiHeader {String} Key Internal access token
    *
    * @apiSuccess {Object} userDetails User's details.
    * @apiSuccess {String} userDetails.username User's username.
@@ -48,7 +48,7 @@ router
    * @apiGroup UserManagement
    * @apiPermission sudo
    *
-   * @apiHeader {String} Authorization User's access token.
+   * @apiHeader {String} Key Internal access token
    *
    * @apiParam {String} id User's unique identifier.
    *
@@ -70,26 +70,31 @@ router
    */
   .get(createRateLimiter(), retrieveUserProfile)
   /**
-   * @api {patch} v4/user/profile/:id Get User Profile and Update reset the existing token
-   * @apiDescription Update the token for a specific user
-   * @apiName updateUserToken
+   * @api {patch} v4/user/profile/:id Perform User Action (addquota, removequota, ban, unban, updatetoken)
+   * @apiDescription Processes various user actions including adding/removing quota, banning/unbanning users, and updating user token.
+   * @apiName processUserAction
    * @apiGroup UserManagement
    * @apiPermission sudo
    *
-   * @apiHeader {String} Authorization User's access token.
+   * @apiHeader {String} Key Internal access token
    *
    * @apiParam {String} id User's unique identifier.
+   * @apiParam {String} action Action to be performed (e.g., addquota, removequota, ban, unban, updatetoken).
+   * @apiParam {String} [amount] Amount of quota to add or remove (required for addquota/removequota).
+   * @apiParam {String} [reason] Reason for the action (required for ban, unban, and updatetoken).
+   * @apiParam {String} [executor] Executor of the action (optional).
+   * @apiParam {String} [expiry] Expiry of the ban (optional).
    *
-   * @apiSuccess {Object} message
-   * @apiError (Unauthorized 401) Unauthorized Only authenticated users can access the data.
-   * @apiError (Forbidden 403) Forbidden Only authorized users can access the data.
-   * @apiError (Too Many Requests 429) TooManyRequests The client has exceeded the allowed number of requests within the time window.
-   * @apiError (Internal Server Error 500) InternalServerError An error occurred while processing the rate limit.
+   * @apiSuccess {Object} message Success message with details of the performed action.
+   * @apiSuccess {Object} user Updated user data after the action.
+   * @apiError (Unauthorized 401) Unauthorized Only authenticated users can perform actions.
+   * @apiError (Forbidden 403) Forbidden Only authorized users can perform certain actions.
+   * @apiError (Bad Request 400) BadRequest Invalid parameters for the specified action.
+   * @apiError (Internal Server Error 500) InternalServerError An error occurred while processing the action.
    *
    * @api {function} createRateLimiter
    * @apiDescription Creates a rate limiter middleware to control the frequency of requests.
    * @apiSuccess {function} middleware Express middleware function that handles rate limiting.
-   *
    */
 
   .patch(createRateLimiter(), processUserAction);
