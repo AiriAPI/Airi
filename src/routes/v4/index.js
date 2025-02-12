@@ -1208,6 +1208,22 @@ import statsRoutes from './internal/stats.js';
  */
 router.use('/stats', statsRoutes);
 
+import membershipRoutes from './internal/membership.js';
+
+/**
+ * @api {use} Mount Membership Routes
+ * @apiDescription Mount the membership-related routes for handling interactions.
+ * @apiName UseMembershipRoutes
+ * @apiGroup Routes
+ *
+ * @apiSuccess {Object} routes Membership-related routes mounted on the parent router.
+ *
+ * @function createMembershipRoutes
+ * @description Creates and returns a set of routes for handling interactions related to Membership.
+ * @returns {Object} Membership-related routes.
+ */
+router.use('/membership', membershipRoutes);
+
 /**
  * Exporting the router for use in other parts of the application.
  * @exports {Router} router - Express Router instance with mounted routes.
