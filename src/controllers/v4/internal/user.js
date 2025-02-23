@@ -185,7 +185,7 @@ const processUserAction = async (req, res, next) => {
 const processUserSessionAndUpdate = async (req, res, next) => {
   try {
     const { headers, body } = req;
-    const { token, id, email, access_token } = body;
+    const { token, id, email, 'access-token': access_token } = body;
     const { key } = headers;
 
     // Validate access key
@@ -265,7 +265,7 @@ const getUser = async (req, res, next) => {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const { id, email, access_token } = headers;
+    const { id, email, 'access-token': access_token } = headers;
 
     // Validate User ID
     if (!id) {
